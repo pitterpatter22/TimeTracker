@@ -73,26 +73,26 @@ You can also run the app in a Docker container. Follow these steps:
 
 ## Endpoints
 
-	•	`/`: Main web interface.
-    •	`/edit`: Interface to Edit Times.
-    •	`/docs`: Docs page.
+•	`/`: Main web interface.
+•	`/edit`: Interface to Edit Times.
+•	`/docs`: Docs page.
 
-	•	`/user/create (POST)`: Create a new user.
-	•	`/user/status/{user} (GET)`: Check the user’s current status (clocked in/out).
-	•	`/time/{user}/in (POST)`: Clock in the user.
-	•	`/time/{user}/out (POST)`: Clock out the user.
-	•	`/time/{user}/recall/{period} (GET)`: Get time data for a specific period (week, pay period, or month).
-	•	`/time/{user}/today (DELETE)`: Delete today’s clock-in and clock-out times.
+•	`/user/create (POST)`: Create a new user.
+•	`/user/status/{user} (GET)`: Check the user’s current status (clocked in/out).
+•	`/time/{user}/in (POST)`: Clock in the user.
+•	`/time/{user}/out (POST)`: Clock out the user.
+•	`/time/{user}/recall/{period} (GET)`: Get time data for a specific period (week, pay period, or month).
+•	`/time/{user}/today (DELETE)`: Delete today’s clock-in and clock-out times.
 
 ## Frontend Functionality
 
-	•	**Dark Mode Toggle**: Click the Toggle Dark Mode button to switch between light and dark modes.
-	•	**Clock In/Out**: Click the Clock In or Clock Out button to record your time.
-	•	**User Creation**: If the user doesn’t exist, you’ll be prompted with a modal to create a new user.
-	•	**View Time Data**: Use the Week, Payperiod, and Month buttons to fetch your time data.
-	•	**Export Data**: Export time entries to CSV by clicking the Export Data button.
+•	**Dark Mode Toggle**: Click the Toggle Dark Mode button to switch between light and dark modes.
+•	**Clock In/Out**: Click the Clock In or Clock Out button to record your time.
+•	**User Creation**: If the user doesn’t exist, you’ll be prompted with a modal to create a new user.
+•	**View Time Data**: Use the Week, Payperiod, and Month buttons to fetch your time data.
+•	**Export Data**: Export time entries to CSV by clicking the Export Data button.
 
 ## Acknowledgements
 
-	•	Built using FastAPI for the backend.
-	•	Alpine.js for a lightweight frontend framework.
+•	Built using FastAPI for the backend.
+•	Alpine.js for a lightweight frontend framework.
