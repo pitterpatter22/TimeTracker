@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   timetracker_app:
-    image: registry.smithserver.app/homelab/time-tracker/timetracker-x64-linux
+    image: timetracker-x64-linux
     pull_policy: always
     restart: unless-stopped
     ports:
