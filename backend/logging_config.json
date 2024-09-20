@@ -1,0 +1,40 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+      "default": {
+        "()": "colorlog.ColoredFormatter",
+        "format": "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
+        "datefmt": "%Y-%m-%d %H:%M:%S",
+        "log_colors": {
+          "DEBUG": "bold_blue",
+          "INFO": "bold_green",
+          "WARNING": "bold_yellow",
+          "ERROR": "bold_red",
+          "CRITICAL": "bold_purple"
+        }
+      }
+    },
+    "handlers": {
+      "default": {
+        "formatter": "default",
+        "class": "logging.StreamHandler",
+        "stream": "ext://sys.stdout"
+      }
+    },
+    "loggers": {
+      "uvicorn": {
+        "handlers": ["default"],
+        "level": "INFO",
+        "propagate": false
+      },
+      "uvicorn.error": {
+        "level": "INFO"
+      },
+      "uvicorn.access": {
+        "handlers": ["default"],
+        "level": "INFO",
+        "propagate": false
+      }
+    }
+  }

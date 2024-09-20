@@ -1,0 +1,91 @@
+/* Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS for Moon and Sun Toggle */
+:root {
+  --darkbg: #251D29;
+  --darkt: #FFD1F7;
+  --lightbg: #f0f0f0; /* Light background color */
+  --lightt: #333;     /* Darker text color for light mode */
+
+  /* Adjusted sizes for the smaller toggle */
+  --toggleHeight: 5em;
+  --toggleWidth: 10em;
+  --toggleBtnRadius: 4em;
+
+  --bgColor--night: #423966;
+  --toggleBtn-bgColor--night: var(--bgColor--night);
+  --mooncolor: #D9FBFF;
+  --bgColor--day: #ffc107; /* Distinct yellow for day mode */
+  --toggleBtn-bgColor--day: var(--bgColor--day);
+}
+
+body {
+  transition: all 0.2s ease-in-out;
+  background: var(--darkbg);
+  color: var(--darkt);
+}
+
+.light {
+  background: var(--lightbg);
+  color: var(--lightt);
+}
+
+.tdnn {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  font-size: 50%;
+  height: var(--toggleHeight);
+  width: var(--toggleWidth);
+  border-radius: var(--toggleHeight);
+  transition: all 500ms ease-in-out;
+  background: var(--bgColor--night);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.day {
+  background: var(--bgColor--day);
+}
+
+.moon {
+  position: relative;
+  display: block;
+  border-radius: 50%;
+  transition: all 400ms ease-in-out;
+  width: var(--toggleBtnRadius);
+  height: var(--toggleBtnRadius);
+  background: var(--bgColor--night);
+  box-shadow:
+    1.5em 1.25em 0 0em var(--mooncolor) inset,
+    rgba(255, 255, 255, 0.1) 0em -3.5em 0 -2.25em,
+    rgba(255, 255, 255, 0.1) 1.5em 3.5em 0 -2.25em,
+    rgba(255, 255, 255, 0.1) 1em 6.5em 0 -2em,
+    rgba(255, 255, 255, 0.1) 3em 1em 0 -2.05em,
+    rgba(255, 255, 255, 0.1) 4em 4em 0 -2.25em,
+    rgba(255, 255, 255, 0.1) 3em 6.5em 0 -2.25em,
+    rgba(255, 255, 255, 0.1) -2em 3.5em 0 -2.25em,
+    rgba(255, 255, 255, 0.1) -0.5em 5em 0 -2.25em;
+}
+
+.sun {
+  transform: translate(3em, 0) rotate(0deg);
+  width: 4em;
+  height: 4em;
+  background: #fff;
+  box-shadow:
+    1.5em 1.5em 0 2.5em #fff inset,
+    0 -2.5em 0 -1.35em #fff,
+    1.75em -1.75em 0 -1.5em #fff,
+    2.5em 0 0 -1.35em #fff,
+    1.75em 1.75em 0 -1.5em #fff,
+    0 2.5em 0 -1.35em #fff,
+    -1.75em 1.75em 0 -1.5em #fff,
+    -2.5em 0 0 -1.35em #fff,
+    -1.75em -1.75em 0 -1.5em #fff;
+}

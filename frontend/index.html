@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en" x-data="appData()" x-init="init()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="/frontend/dist/styles.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <script src="https://unpkg.com/alpinejs" defer></script>
+
+  <!-- Icons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+  <link rel="manifest" href="/static/site.webmanifest">
+  <link rel="mask-icon" href="/static/safari-pinned-tab.svg" color="#5bbad5">
+  <link rel="shortcut icon" href="/static/favicon.ico">
+  <meta name="msapplication-TileColor" content="#2b5797">
+  <meta name="theme-color" content="#ffffff">
+
+  <!-- Custom Styles for Light and Dark Modes and Clock Icon -->
+  <style>
+    /* Default (Light Mode) Styles */
+    body {
+      background-color: #f5f5f5;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+      text-align: center; /* Center all elements */
+      padding: 80px 0; /* Add padding to top and bottom */
+      margin: 0; /* Remove default margin */
+    }
+
+    /* Time Tracker Card */
+    .time-tracker {
+      background-color: #fff;
+      color: #333;
+      transition: background-color 0.3s, color 0.3s;
+      max-width: 800px; /* Increased max-width for wider card */
+      z-index: 10; /* Ensures the tracker is on top of the SVG animation */
+      position: relative; /* Ensure this element is positioned above the SVG */
+      margin: 0 auto; /* Center the time tracker card */
+    }
+
+    /* Dark Mode Styles */
+    body.dark-mode {
+      background-color: #1a202c;
+      color: #cbd5e0;
+    }
+
+    .dark-mode .time-tracker {
+      background-color: #2d3748;
+      color: #cbd5e0;
+    }
+
+    /* Dark Mode SVG Colors */
+    body.dark-mode .svg-background stop:nth-child(1) {
+      stop-color: rgba(20, 30, 48, 0.06); /* Darker gradient start */
+    }
+    body.dark-mode .svg-background stop:nth-child(2) {
+      stop-color: rgba(36, 59, 85, 0.6); /* Darker gradient middle */
+    }
+    body.dark-mode .svg-background stop:nth-child(3) {
+      stop-color: rgba(52, 73, 94, 0.2); /* Darker gradient end */
+    }
+
+    /* SVG Background */
+    .svg-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1; /* Ensure SVG is below the main content */
+      pointer-events: none; /* Makes sure SVG doesn't interfere with interactions */
+    }
+
+    /* Button Styles */
+    .toggle-button {
+      margin-bottom: 1em;
+      padding: 0.5em 1em;
+      background-color: #edf2f7;
+      color: #2d3748;
+      border-radius: 0.375em;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    /* Clock In/Out Button */
+    .clock-in-out-button {
+      max-width: 300px; /* Set a max-width to limit the button size */
+      width: 100%; /* Ensure it takes up to 100% of its container's width */
+      padding: 0.75em 1.5em; /* Adjust padding for better appearance */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto; /* Center the button */
+      margin-bottom: 2em; /* Add bottom margin for more spacing */
+      transition: background-color 0.3s, color 0.3s;
+      font-size: 1.2em; /* Adjust font size if needed */
+    }
+
+    /* Dark Mode Button Styles */
+    .dark-mode .toggle-button {
+      background-color: #4a5568;
+      color: #edf2f7;
+    }
+
+    /* Clock Icon Styles */
+    .clock {
+      position: relative;
+      transform: scale(1.5); /* Adjust size of the clock */
+      border-radius: 50%;
+      border: 2px solid;
+      width: 30px; /* Adjusted size */
+      height: 30px; /* Adjusted size */
+      margin-left: 10px; /* Add some space between text and icon */
+    }
+
+    .clock:after, .clock:before {
+      position: absolute;
+      width: 0px;
+      display: block;
+      border-left: 2px solid #000;
+      content: '';
+      left: 50%; /* Center horizontally */
+      top: 50%; /* Center vertically */
+      transform-origin: center bottom; /* Origin should be at the bottom center */
+      transform: translateX(-50%) translateY(-100%); /* Move to center */
+    }
+
+    /* Minute Hand */
+    .clock:after {
+      height: 12px; /* Adjusted hand length */
+      animation: minute-dial 1s linear infinite; /* Add animation */
+    }
+
+    /* Hour Hand */
+    .clock:before {
+      height: 8px; /* Adjusted hand length */
+      animation: hour-dial 60s linear infinite; /* Add animation */
+    }
+
+    /* Keyframes for minute hand */
+    @keyframes minute-dial {
+      0% { transform: translateX(-50%) translateY(-100%) rotate(0deg); }
+      100% { transform: translateX(-50%) translateY(-100%) rotate(360deg); }
+    }
+
+    /* Keyframes for hour hand */
+    @keyframes hour-dial {
+      0% { transform: translateX(-50%) translateY(-100%) rotate(0deg); }
+      100% { transform: translateX(-50%) translateY(-100%) rotate(360deg); }
+    }
+
+    /* Table Styles */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+
+    thead th {
+      background-color: #e2e8f0; /* Light grey background for headers */
+      color: #2d3748; /* Darker text for headers */
+      padding: 0.75em;
+      border-bottom: 2px solid #cbd5e0; /* Border for table headers */
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f7fafc; /* Light grey for even rows */
+    }
+
+    tbody tr:nth-child(odd) {
+      background-color: #ffffff; /* White for odd rows */
+    }
+
+    tbody td {
+      padding: 0.75em;
+      border-bottom: 1px solid #cbd5e0; /* Light grey border for cells */
+    }
+
+    /* Dark Mode Table Styles */
+    body.dark-mode table {
+      background-color: #2d3748; /* Dark background for the table */
+      color: #cbd5e0; /* Light text color */
+    }
+
+    body.dark-mode thead th {
+      background-color: #4a5568; /* Darker background for headers */
+      color: #edf2f7; /* Light text for headers */
+    }
+
+    body.dark-mode tbody tr:nth-child(even) {
+      background-color: #2c3440; /* Slightly lighter dark grey for even rows */
+    }
+
+    body.dark-mode tbody tr:nth-child(odd) {
+      background-color: #1f2733; /* Slightly darker grey for odd rows */
+    }
+
+    body.dark-mode tbody td {
+      border-bottom: 1px solid #4a5568; /* Darker grey border for cells */
+    }
+
+    /* Add borders to improve contrast */
+    table, th, td {
+      border: 1px solid #cbd5e0; /* Border color for light mode */
+    }
+
+    body.dark-mode table, body.dark-mode th, body.dark-mode td {
+      border: 1px solid #4a5568; /* Border color for dark mode */
+    }
+
+    /* Status Message Styles */
+    .status-message {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(50, 50, 50, 0.8); /* Default soft dark background */
+      color: #fff;
+      padding: 0.75em 1.5em;
+      border-radius: 5px;
+      opacity: 0; /* Start as invisible */
+      z-index: 9999; /* Ensure it's on top */
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    /* Soft Colors for Success and Error */
+    .status-success {
+      background-color: rgba(72, 187, 120, 0.9); /* Soft green for success */
+    }
+
+    .status-error {
+      background-color: rgba(229, 83, 83, 0.9); /* Soft red for error */
+    }
+
+    /* Show the message */
+    .show {
+      opacity: 1; /* Fade-in effect */
+      transform: translateX(-50%) translateY(0); /* Move to visible position */
+    }
+
+    /* Hide the message */
+    .hidden {
+      opacity: 0; /* Fade-out effect */
+      transform: translateX(-50%) translateY(-10px); /* Slightly move up when hidden */
+    }
+
+    /* Style for the switch user icon */
+    .switch-user-icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      font-size: 1.2em; /* Adjust size as needed */
+      color: #333; /* Default color */
+      transition: color 0.3s;
+    }
+
+    /* Change color on hover */
+    .switch-user-icon:hover {
+      color: #007bff; /* Change to a different color on hover */
+    }
+
+    /* Dark mode styles */
+    body.dark-mode .switch-user-icon {
+      color: #cbd5e0; /* Color for dark mode */
+    }
+
+    body.dark-mode .switch-user-icon:hover {
+      color: #4a90e2; /* Hover color for dark mode */
+    }
+    /* Light mode footer styles */
+    footer {
+        text-align: center;       /* Center the text */
+        padding: 20px;            /* Add some padding */
+        font-weight: 300;         /* Set the font weight to light (300) */
+        color: #777;              /* Light gray text color */
+        background-color: #f9f9f9; /* Light background color */
+        position: fixed;          /* Make the footer stick to the bottom */
+        bottom: 0;
+        width: 100%;              /* Make the footer span the full width */
+        transition: background-color 0.3s, color 0.3s; /* Smooth transition */
+    }
+
+    /* Dark mode footer styles */
+    body.dark-mode footer {
+        background-color: #1a202c; /* Dark background color */
+        color: #cbd5e0;            /* Light gray text color for dark mode */
+    }
+    /* Modal Box Styling */
+    #userPromptModal {
+      position: fixed; /* Fixed positioning */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.75); /* Dim background */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0; /* Start as invisible */
+      pointer-events: none; /* Prevent interaction when hidden */
+      transition: opacity 0.3s ease; /* Smooth transition */
+      z-index: 9999; /* Ensure it is on top of other content */
+    }
+    #userPromptModal > div {
+      background-color: #ffffff; /* Default background color */
+      color: #333; /* Default text color */
+      padding: 1.5em;
+      border-radius: 0.5em;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Box shadow for a raised effect */
+      transform: scale(1);
+      opacity: 1;
+      transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+      text-align: center; /* Center content inside the modal */
+    }
+    /* Visible state for modal */
+    #userPromptModal.visible {
+      opacity: 1;
+      pointer-events: auto; /* Allow interaction */
+    }
+    /* Center the buttons */
+    #userPromptModal .modal-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px; /* Space between the buttons */
+      margin-top: 1em; /* Space above the buttons */
+    }
+
+    #userPromptModal .modal-buttons button {
+      padding: 0.5em 1.5em;
+      border-radius: 0.5em;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    /* Hidden state for the modal box */
+    #userPromptModal.hidden > div {
+      transform: scale(0.95);
+      opacity: 0;
+      transition: transform 0.2s ease-in, opacity 0.2s ease-in;
+    }
+    /* Dark Mode Support for Modal */
+    body.dark-mode #userPromptModal > div {
+      background-color: #2d3748; /* Dark mode background */
+      color: #cbd5e0; /* Dark mode text color */
+    }
+  </style>
+</head>
+
+<body :class="{ 'dark-mode': isDarkMode }">
+
+  <!-- Custom Modal for User Creation Prompt -->
+  <div id="userPromptModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50">
+    <div class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-lg shadow-lg p-6 w-96">
+      <h2 class="text-xl font-bold mb-4">User Not Found</h2>
+      <p id="modalMessage" class="mb-4">User "<span id="usernameSpan"></span>" does not exist. Do you want to create a new user?</p>
+      <!-- Modal Buttons -->
+      <div class="modal-buttons">
+        <button @click="toggleModal(false)" class="bg-red-500 text-white py-2 px-4 rounded-lg">Cancel</button>
+        <button @click="createUser()" class="bg-blue-500 text-white py-2 px-4 rounded-lg">Create User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SVG Wave Animation Background -->
+  <svg class="svg-background" version="1.1" xmlns="http://www.w3.org/2000/svg"
+       xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
+    <defs>
+      <linearGradient id="bg">
+        <stop offset="0%" style="stop-color:rgba(130, 158, 249, 0.06)"></stop>
+        <stop offset="50%" style="stop-color:rgba(76, 190, 255, 0.6)"></stop>
+        <stop offset="100%" style="stop-color:rgba(115, 209, 72, 0.2)"></stop>
+      </linearGradient>
+      <!-- Higher Waves Path -->
+      <path id="wave" fill="url(#bg)" d="M-363.852,452.589c0,0,236.988-91.997,505.475,0s371.981,88.998,575.971,0s293.985-89.278,505.474,5.859s493.475,98.368,716.963-4.995v560.106H-363.852V452.589z" />
+    </defs>
+    <g>
+      <use xlink:href='#wave' opacity=".3">
+        <animateTransform
+          attributeName="transform"
+          attributeType="XML"
+          type="translate"
+          dur="10s"
+          calcMode="spline"
+          values="270 230; -334 180; 270 230"
+          keyTimes="0; .5; 1"
+          keySplines="0.42, 0, 0.58, 1.0;0.42, 0, 0.58, 1.0"
+          repeatCount="indefinite" />
+      </use>
+      <use xlink:href='#wave' opacity=".6">
+        <animateTransform
+          attributeName="transform"
+          attributeType="XML"
+          type="translate"
+          dur="8s"
+          calcMode="spline"
+          values="-270 230;243 220;-270 230"
+          keyTimes="0; .6; 1"
+          keySplines="0.42, 0, 0.58, 1.0;0.42, 0, 0.58, 1.0"
+          repeatCount="indefinite" />
+      </use>
+      <use xlink:href='#wave' opacity=".9">
+        <animateTransform
+          attributeName="transform"
+          attributeType="XML"
+          type="translate"
+          dur="6s"
+          calcMode="spline"
+          values="0 230;-140 200;0 230"
+          keyTimes="0; .4; 1"
+          keySplines="0.42, 0, 0.58, 1.0;0.42, 0, 0.58, 1.0"
+          repeatCount="indefinite" />
+      </use>
+    </g>
+  </svg>
+
+  <!-- Status Message Container -->
+  <div id="statusMessage" class="status-message hidden"></div>
+
+  <!-- Main Content -->
+  <div class="relative max-w-lg w-full time-tracker shadow-2xl rounded-xl p-8 z-10">
+    <!-- Switch User Icon -->
+    <div class="switch-user-icon" @click="clearUser">
+      <i class="fas fa-user"></i>
+    </div>
+    <h1 class="text-4xl font-bold mb-6 text-center">Time Tracker</h1>
+
+    <!-- Toggle Dark Mode Button -->
+    <div class="flex justify-center mb-4">
+      <button @click="toggleDarkMode()" class="toggle-button">Toggle Dark Mode</button>
+    </div>
+
+    <!-- User Input and Clock In/Out Logic -->
+    <div class="text-center">
+      <template x-if="!userName">
+        <div>
+          <label for="userNameInput" class="block text-sm mb-2">Enter your name:</label>
+          <input id="userNameInput" type="text" class="w-full border p-2 mb-4" x-model="userNameInput" placeholder="Your name" style="width: 250px;">
+            <div class="mt-4">
+              <button @click="saveUser()" class="bg-blue-500 text-white py-2 px-4 rounded-lg">Save Name</button>
+            </div>
+        </div>
+      </template>
+
+      <!-- Show Clock In/Out and Query Buttons if User Exists -->
+      <template x-if="userName">
+        <div>
+          <p class="mb-4">Welcome, <span x-text="capitalizeFirstLetter(userName)"></span>!</p>
+          <!-- Show current status -->
+          <p class="mb-4" x-show="userStatus !== null">Status: <span x-text="capitalizeFirstLetter(userStatus)"></span></p>
+
+          <!-- Clock In/Out Button -->
+          <button @click="clockInOut()" :disabled="isProcessingClockInOut"
+            class="clock-in-out-button flex items-center justify-center w-full py-4 px-6 text-lg font-semibold rounded-lg transition-colors mb-6"
+            :class="isClockedIn ? 'bg-red-500 text-white' : 'bg-green-500 text-white'">
+            <span x-text="isClockedIn ? 'Clock Out' : 'Clock In'"></span>
+            <div class="clock" x-show="isClockedIn"></div>
+          </button>
+
+          <!-- Delete Today's Entry Button, visible only if the user has clocked in today -->
+          <template x-if="isClockedInToday">
+              <div class="mb-4">
+                  <button @click="deleteTodayEntry()" class="bg-red-500 text-white py-2 px-4 rounded-lg">
+                      Delete Today's Entry
+                  </button>
+              </div>
+          </template>
+
+          <!-- Data Query Section -->
+          <div class="mb-4">
+            <h2 class="text-xl font-semibold mb-2">Get time data for the:</h2>
+            <div class="flex justify-center space-x-4">
+              <button @click="fetchData('week')" class="bg-blue-500 text-white py-2 px-4 rounded-lg">Week</button>
+              <button @click="fetchData('payperiod')" class="bg-blue-500 text-white py-2 px-4 rounded-lg">Payperiod</button>
+              <button @click="fetchData('month')" class="bg-blue-500 text-white py-2 px-4 rounded-lg">Month</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Display Total Days and Hours Worked -->
+      <div x-show="tableData.length > 0" class="mt-4">
+        <h2 class="text-3xl font-bold mb-6">
+          <span x-text="daysWorked"></span> Days,
+          <span x-text="totalHours"></span> Hours
+        </h2>
+      </div>
+
+      <!-- Data Table (hidden unless data is present) -->
+      <div x-show="tableData.length > 0" class="mt-6">
+        <h2 class="text-xl font-semibold mb-4">Hours Worked</h2>
+        <table class="min-w-full bg-white text-left">
+          <thead>
+            <tr>
+              <th class="border px-4 py-2">Date</th>
+              <th class="border px-4 py-2">Clock In</th>
+              <th class="border px-4 py-2">Clock Out</th>
+              <th class="border px-4 py-2">Total Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in tableData" :key="row.dateRange">
+              <tr>
+                <td class="border px-4 py-2" x-text="row.dateRange"></td>
+                <td class="border px-4 py-2" x-text="row.clockInTime"></td>
+                <td class="border px-4 py-2" x-text="row.clockOutTime"></td>
+                <td class="border px-4 py-2" x-text="row.totalTime"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+
+        <!-- Export Button -->
+        <button @click="exportTable()" class="mt-4 bg-green-500 text-white py-2 px-4 rounded-lg">Export Data</button>
+      </div>
+    </div>
+  </div>
+  <!-- Footer -->
+  <footer>
+    &copy; Powered by Sean and Coffee
+  </footer>
+  <script>
+    function appData() {
+      return {
+        isDarkMode: false,
+        userName: null,
+        userNameInput: '',
+        isClockedIn: false, 
+        isClockedInToday: false, 
+        userStatus: null,
+        tableData: [],
+        totalHours: 0,
+        daysWorked: 0,
+        modalVisible: false,
+        modalUsername: '',
+        isProcessingClockInOut: false,
+
+        // Initialize the app
+        init() {
+          this.isDarkMode = localStorage.getItem('darkMode') === 'true';
+          if (this.isDarkMode) {
+            document.body.classList.add('dark-mode');
+          } else {
+            document.body.classList.remove('dark-mode');
+          }
+          this.checkUser();
+        },
+
+        // Capitalize the first letter of the username
+        capitalizeFirstLetter(name) {
+          return name.charAt(0).toUpperCase() + name.slice(1);
+        },
+
+        // Show status message
+        showStatusMessage(message, type) {
+          const statusMessageElement = document.getElementById('statusMessage');
+          statusMessageElement.textContent = message;
+          statusMessageElement.className = 'status-message hidden';
+
+          if (type === 'success') {
+            statusMessageElement.classList.add('status-success');
+          } else {
+            statusMessageElement.classList.add('status-error');
+          }
+
+          statusMessageElement.classList.remove('hidden');
+          statusMessageElement.classList.add('show');
+
+          if (this.statusMessageTimeout) {
+            clearTimeout(this.statusMessageTimeout);
+          }
+
+          this.statusMessageTimeout = setTimeout(() => {
+            statusMessageElement.classList.remove('show');
+            statusMessageElement.classList.add('hidden');
+          }, 3000);
+        },
+
+        // Toggle between dark mode and light mode
+        toggleDarkMode() {
+          this.isDarkMode = !this.isDarkMode;
+          localStorage.setItem('darkMode', this.isDarkMode);
+          document.body.classList.toggle('dark-mode', this.isDarkMode);
+        },
+
+        // Save user to cookie
+        saveUser() {
+          if (this.isSavingUser) return;
+          this.isSavingUser = true;
+
+          const username = this.userNameInput.toLowerCase();
+          fetch(`/user/status/${username}`)
+            .then(response => {
+              if (response.ok) {
+                // If the user exists, set the cookie and check user status
+                this.setCookie('userName', username, 7);
+                this.userName = username;
+                this.checkUserStatus();
+              } else if (response.status === 404) {
+                // If the user is not found, show the modal to create a new user
+                this.showUserPromptModal(username);
+              } else {
+                throw new Error('Unexpected error checking user status');
+              }
+            })
+            .catch((error) => {
+              this.showStatusMessage(`Error: ${error.message || 'Unknown error'}`, 'error');
+            })
+            .finally(() => {
+              this.isSavingUser = false;
+            });
+        },
+
+        // Show user prompt modal
+        showUserPromptModal(username) {
+          this.modalUsername = username;
+          document.getElementById('usernameSpan').textContent = username;
+          this.toggleModal(true);  // Ensure this shows the modal
+        },
+
+        toggleModal(visible) {
+          const modal = document.getElementById('userPromptModal');
+          if (visible) {
+            modal.classList.remove('hidden');
+            modal.classList.add('visible');
+          } else {
+            modal.classList.remove('visible');
+            // Delay the hidden state only after the CSS transition finishes
+            setTimeout(() => {
+              modal.classList.add('hidden');
+            }, 200); // Matching the transition duration (0.2s)
+          }
+        },
+
+        // Create a new user
+        createUser() {
+          if (this.isCreatingUser) return;
+          this.isCreatingUser = true;
+
+          const username = this.modalUsername;
+          fetch('/user/create', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ name: username })
+          })
+          .then(response => {
+              if (response.ok) {
+                  this.setCookie('userName', username, 7);
+                  this.userName = username;
+                  this.checkUserStatus();
+                  this.showStatusMessage(`User "${username}" has been created successfully!`, 'success');
+              } else {
+                  return response.json().then(err => { throw new Error(err.detail); });
+              }
+          })
+          .catch((error) => {
+              this.showStatusMessage(`Error creating user: ${error.message}`, 'error');
+          })
+          .finally(() => {
+              this.toggleModal(false);
+              this.isCreatingUser = false;
+          });
+        },
+
+        // Clear user data
+        clearUser() {
+          this.deleteCookie('userName');
+          this.userName = null;
+          this.userStatus = null;
+        },
+
+        // Check if user exists and get status
+        checkUser() {
+          this.userName = this.getCookie('userName');
+          if (this.userName) {
+            this.checkUserStatus();
+          }
+        },
+
+        // Get the user's current status
+        checkUserStatus() {
+          const user = this.userName;
+          fetch(`/user/status/${user}`)
+            .then(response => response.json())
+            .then(data => {
+              this.userStatus = data;
+              this.isClockedIn = this.userStatus === "in";
+              this.checkIfClockedInToday();
+            })
+            .catch(() => {
+              this.userStatus = "unknown";
+              this.isClockedIn = false;
+              this.isClockedInToday = false;
+            });
+        },
+
+        // Clock in or out the user
+        clockInOut() {
+          if (this.isProcessingClockInOut) return;
+          this.isProcessingClockInOut = true;
+
+          const user = this.userName;
+          if (this.isClockedIn) {
+            fetch(`/time/${user}/out`, { method: 'POST' })
+              .then((response) => {
+                if (!response.ok) throw new Error('Error clocking out.');
+                this.isClockedIn = false;
+                this.userStatus = "out";
+                this.isClockedInToday = true;
+                this.showStatusMessage(`${user} has been clocked out successfully!`, 'success');
+              })
+              .catch(() => this.showStatusMessage(`Error clocking ${user} out.`, 'error'))
+              .finally(() => this.isProcessingClockInOut = false);
+          } else {
+            fetch(`/time/${user}/in`, { method: 'POST' })
+              .then((response) => {
+                if (!response.ok) {
+                  return response.json().then(err => { throw new Error(err.message); });
+                }
+                this.isClockedIn = true;
+                this.userStatus = "in";
+                this.isClockedInToday = true;
+                this.showStatusMessage(`${user} has been clocked in successfully!`, 'success');
+              })
+              .catch((error) => this.showStatusMessage(error.message, 'error'))
+              .finally(() => this.isProcessingClockInOut = false);
+          }
+        },
+
+        // Delete today's clock in and clock out time
+        deleteTodayEntry() {
+          const user = this.userName;
+          fetch(`/time/${user}/today`, { method: 'DELETE' })
+            .then((response) => {
+              if (!response.ok) throw new Error('Error deleting today\'s entry.');
+              this.isClockedInToday = false;
+              this.showStatusMessage(`Today's entry has been deleted successfully!`, 'success');
+            })
+            .catch(() => this.showStatusMessage(`Error deleting today's entry.`, 'error'));
+        },
+
+        // Check if the user has clocked in today
+        checkIfClockedInToday() {
+          if (!this.userName) return;
+          const user = this.userName;
+          fetch(`/time/${user}/is_clocked_in_today`)
+            .then(response => response.json())
+            .then(data => {
+              this.isClockedInToday = data.clocked_in_today;
+            })
+            .catch(() => {
+              this.isClockedInToday = false;
+            });
+        },
+
+        // Fetch data for the specified period
+        fetchData(type) {
+          const user = this.userName;
+          fetch(`/time/${user}/recall/${type}`)
+              .then(response => response.json())
+              .then(data => {
+                  this.totalHours = data.total_hours ? data.total_hours.toFixed(2) : '0.00';
+                  this.daysWorked = data.days_worked || 0;
+                  this.tableData = data.entries.map(entry => {
+                      return {
+                          dateRange: entry.date || 'N/A',
+                          clockInTime: entry.clock_in.clock_in ? this.formatTimeUTC(entry.clock_in.clock_in) : 'N/A',
+                          clockOutTime: entry.clock_out.clock_out ? this.formatTimeUTC(entry.clock_out.clock_out) : 'N/A',
+                          totalTime: this.formatTotalTime(entry.total_time) || 'N/A'
+                      };
+                  });
+              })
+              .catch((error) => {
+                  this.showStatusMessage('Error fetching data: ' + error.message, 'error');
+              });
+        },
+
+        // Format UTC time to the local timezone
+        formatTimeUTC(utcDateString) {
+          const date = new Date(utcDateString);
+          return date.toLocaleString(); // This converts the UTC date to the local timezone
+        },
+
+        // Format total time to X Hours X Min
+        formatTotalTime(totalTimeString) {
+          if (!totalTimeString || totalTimeString === 'N/A') return 'N/A';
+          const timeParts = totalTimeString.match(/(\d+):(\d+)/);
+          if (timeParts) {
+            const hours = parseInt(timeParts[1], 10);
+            const minutes = parseInt(timeParts[2], 10);
+            return `${hours} Hours ${minutes} Min`;
+          }
+          return totalTimeString;
+        },
+
+        // Export table data to CSV
+        exportTable() {
+          let csvContent = "data:text/csv;charset=utf-8,";
+          csvContent += "Date Range,Clock In,Clock Out,Total Time\n";
+          this.tableData.forEach(row => {
+            const dataString = `${row.dateRange},${row.clockInTime},${row.clockOutTime},${row.totalTime}`;
+            csvContent += dataString + "\n";
+          });
+          const encodedUri = encodeURI(csvContent);
+          const link = document.createElement("a");
+          link.setAttribute("href", encodedUri);
+          link.setAttribute("download", "time_data.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        },
+
+        // Utility functions for cookies
+        setCookie(name, value, days) {
+          const d = new Date();
+          d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+          document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/`;
+        },
+        getCookie(name) {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return null;
+        },
+        deleteCookie(name) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        }
+      };
+    }
+</script>
+</body>
+</html>
