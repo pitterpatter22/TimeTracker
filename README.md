@@ -2,6 +2,12 @@
 
 The **TimeTracker App** is a simple web-based tool designed to help users track their working hours by clocking in and clocking out. It also allows users to view their hours worked over specific time periods (week, pay period, or month), and offers functionality for user creation and deletion. It’s built with **FastAPI** for the backend and **Alpine.js** for the frontend, supporting dark mode and responsive design.
 
+
+## Demo Page
+
+[Demo Page](https://timetracker-demo.pitterpatter.io)
+
+
 ## Features
 
 - **User Creation**: If a user does not exist, a modal prompts to create a new user.
