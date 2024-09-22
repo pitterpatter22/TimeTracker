@@ -6,6 +6,7 @@ import backend.schemas as schemas
 from backend.exceptions import UserNotFoundException, UserAlreadyClockedInException, NoClockInFoundException, UserAlreadyClockedOutException, AdminUserAlreadyExists, UserAlreadyExists
 import logging
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timedelta, timezone
 import bcrypt
 logger = logging.getLogger("uvicorn")
 
@@ -16,20 +17,33 @@ def _get_period_summary(time_entries):
     days_worked = 0
 
     for entry in time_entries:
-        entry_date = entry.clock_in.date().strftime("%Y-%m-%d")
+        # Ensure clock_in and clock_out are timezone-aware
+        clock_in_time = entry.clock_in
+        if clock_in_time and clock_in_time.tzinfo is None:
+            clock_in_time = clock_in_time.replace(tzinfo=timezone.utc)
+
+        clock_out_time = entry.clock_out
+        if clock_out_time and clock_out_time.tzinfo is None:
+            clock_out_time = clock_out_time.replace(tzinfo=timezone.utc)
+
+        entry_date = clock_in_time.date().strftime("%Y-%m-%d")
+
         if entry_date not in grouped_data:
             grouped_data[entry_date] = {
-                "clock_in": entry,
+                "clock_in": clock_in_time,
                 "clock_out": None
             }
 
-        if entry.clock_out:
-            grouped_data[entry_date]["clock_out"] = entry
+        if clock_out_time:
+            grouped_data[entry_date]["clock_out"] = clock_out_time
             # Calculate total time for the day
-            total_time = entry.clock_out - entry.clock_in
+            total_time = clock_out_time - clock_in_time
             grouped_data[entry_date]["total_time"] = str(total_time)
             total_hours += total_time.total_seconds() / 3600
             days_worked += 1
+        else:
+            grouped_data[entry_date]["clock_out"] = None
+            grouped_data[entry_date]["total_time"] = "N/A"
 
     # Convert grouped data to list format
     result = []
@@ -74,31 +88,37 @@ def create_user(db: Session, user: schemas.UserCreate, is_admin: bool = False, h
 
     return new_user
 
-def clock_in(db: Session, user: str, note: str = None):
+def clock_in(db: Session, user: str, time: datetime = None, note: str = None):
     logger.info(f"clock_in: A request has been made for {user}")
     db_user = get_user_by_name(db, user)
     if not db_user:
         raise UserNotFoundException(user)
 
-    today = datetime.now().date()
+    # Use provided time or default to current UTC time
+    if time is None:
+        time = datetime.now(timezone.utc)
+    else:
+        # Ensure time is timezone-aware and in UTC
+        if time.tzinfo is None:
+            time = time.replace(tzinfo=timezone.utc)
+        else:
+            time = time.astimezone(timezone.utc)
+
+    today = time.date()
     time_entry = db.query(TimeEntry).filter(
         TimeEntry.user_id == db_user.id,
         func.date(TimeEntry.clock_in) == today
     ).first()
 
-    # Check if the user has already clocked in and hasn't clocked out yet
     if time_entry:
         if time_entry.clock_out:
-            raise UserAlreadyClockedOutException(user.capitalize())  # User has already clocked out for the day
+            raise UserAlreadyClockedOutException(user.capitalize())
         else:
-            raise UserAlreadyClockedInException()  # User is already clocked in without clocking out
-
-    if time_entry:
-        raise UserAlreadyClockedInException()
+            raise UserAlreadyClockedInException()
 
     new_entry = TimeEntry(
         user_id=db_user.id,
-        clock_in=datetime.now(),
+        clock_in=time,
         clock_in_note=note
     )
     db.add(new_entry)
@@ -106,12 +126,20 @@ def clock_in(db: Session, user: str, note: str = None):
     db.refresh(new_entry)
     return new_entry
 
-def clock_out(db: Session, user: str, note: str = None):
+def clock_out(db: Session, user: str, time: datetime = None, note: str = None):
     db_user = get_user_by_name(db, user)
     if not db_user:
         raise UserNotFoundException(user)
 
-    today = datetime.now().date()
+    if time is None:
+        time = datetime.now(timezone.utc)
+    else:
+        if time.tzinfo is None:
+            time = time.replace(tzinfo=timezone.utc)
+        else:
+            time = time.astimezone(timezone.utc)
+
+    today = time.date()
     time_entry = db.query(TimeEntry).filter(
         TimeEntry.user_id == db_user.id,
         func.date(TimeEntry.clock_in) == today
@@ -120,7 +148,7 @@ def clock_out(db: Session, user: str, note: str = None):
     if not time_entry:
         raise NoClockInFoundException()
 
-    time_entry.clock_out = datetime.now()
+    time_entry.clock_out = time
     time_entry.clock_out_note = note
     db.commit()
     db.refresh(time_entry)
@@ -131,15 +159,24 @@ def get_time_for_pay_period(db: Session, user: str):
     if not db_user:
         raise UserNotFoundException(user)
 
-    today = datetime.now()
-    last_friday = today - timedelta(days=(today.weekday() + 3) % 14)
-    start_date = last_friday - timedelta(days=13)
-    end_date = last_friday
+    # Define a reference pay period start date (a known payday)
+    reference_pay_period_start = datetime(2023, 1, 6, tzinfo=timezone.utc).date()  # Update this date as needed
+
+    today = datetime.now(timezone.utc).date()
+    days_since_reference = (today - reference_pay_period_start).days
+    pay_periods_since_reference = days_since_reference // 14
+    current_pay_period_start = reference_pay_period_start + timedelta(days=pay_periods_since_reference * 14)
+    current_pay_period_end = current_pay_period_start + timedelta(days=13)  # 14 days total
+
+    # Adjust for future dates if necessary
+    if today < current_pay_period_start:
+        current_pay_period_start -= timedelta(days=14)
+        current_pay_period_end -= timedelta(days=14)
 
     time_entries = db.query(TimeEntry).filter(
         TimeEntry.user_id == db_user.id,
-        TimeEntry.clock_in >= start_date,
-        TimeEntry.clock_in <= end_date
+        func.date(TimeEntry.clock_in) >= current_pay_period_start,
+        func.date(TimeEntry.clock_in) <= current_pay_period_end
     ).all()
 
     return _get_period_summary(time_entries)
@@ -149,7 +186,7 @@ def get_time_for_month(db: Session, user: str):
     if not db_user:
         raise UserNotFoundException(user)
 
-    today = datetime.now()
+    today = datetime.now(timezone.utc)
     start_date = today.replace(day=1)
 
     time_entries = db.query(TimeEntry).filter(
@@ -194,7 +231,7 @@ def delete_today_entry(db: Session, user: str):
     if not db_user:
         raise UserNotFoundException(user)
 
-    today = datetime.now().date()
+    today = datetime.now(timezone.utc).date()
     time_entry = db.query(TimeEntry).filter(
         TimeEntry.user_id == db_user.id,
         func.date(TimeEntry.clock_in) == today
@@ -213,7 +250,7 @@ def is_clocked_in_today(db: Session, user: str):
     if not db_user:
         return False
 
-    today = datetime.now().date()
+    today = datetime.now(timezone.utc).date()
     time_entry = db.query(TimeEntry).filter(
         TimeEntry.user_id == db_user.id,
         func.date(TimeEntry.clock_in) == today

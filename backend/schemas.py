@@ -1,6 +1,14 @@
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
+from typing import List, Optional
+from datetime import datetime, timedelta, timezone
+
+class Config:
+    orm_mode = True
+    json_encoders = {
+        datetime: lambda v: v.astimezone(timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
+    }
 
 class UserBase(BaseModel):
     name: str
@@ -30,15 +38,27 @@ class DailyTime(BaseModel):
     clock_out: TimeEntry
     total_time: str  # New field to represent the total time worked that day
 
+class TimeEntryResponse(BaseModel):
+    date: str
+    clock_in: Optional[datetime]
+    clock_out: Optional[datetime]
+    total_time: str
+
+    class Config:
+        orm_mode = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
 class PeriodSummary(BaseModel):
-    total_hours: float  # Total hours worked in the period
-    days_worked: int  # Number of days worked in the period
-    entries: list[DailyTime]  # List of daily time entries
+    total_hours: float
+    days_worked: int
+    entries: List[TimeEntryResponse]
 
 class Message(BaseModel):
     message: str
 
 class EditClockTimes(BaseModel):
-    date: datetime  # Keep the full datetime for editing purposes
-    clock_in_time: Optional[datetime]
-    clock_out_time: Optional[datetime]
+    date: str  # Keep as string since we're using it to query
+    clock_in_time: Optional[str] = None  # Expect ISO datetime string
+    clock_out_time: Optional[str] = None

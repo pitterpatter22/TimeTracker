@@ -764,14 +764,15 @@
           fetch(`/time/${user}/recall/${type}`)
               .then(response => response.json())
               .then(data => {
+                  console.log('Data received from backend:', data); // Add this line
                   this.totalHours = data.total_hours ? data.total_hours.toFixed(2) : '0.00';
                   this.daysWorked = data.days_worked || 0;
                   this.tableData = data.entries.map(entry => {
                       return {
-                          dateRange: entry.date || 'N/A',
-                          clockInTime: entry.clock_in.clock_in ? this.formatTimeUTC(entry.clock_in.clock_in) : 'N/A',
-                          clockOutTime: entry.clock_out.clock_out ? this.formatTimeUTC(entry.clock_out.clock_out) : 'N/A',
-                          totalTime: this.formatTotalTime(entry.total_time) || 'N/A'
+                        dateRange: entry.date || 'N/A',
+                        clockInTime: entry.clock_in ? this.formatTimeUTC(entry.clock_in) : 'N/A',
+                        clockOutTime: entry.clock_out ? this.formatTimeUTC(entry.clock_out) : 'N/A',
+                        totalTime: this.formatTotalTime(entry.total_time) || 'N/A'
                       };
                   });
               })
@@ -781,19 +782,37 @@
         },
 
         // Format UTC time to the local timezone
-        formatTimeUTC(utcDateString) {
-          const date = new Date(utcDateString);
-          return date.toLocaleString(); // This converts the UTC date to the local timezone
+        formatTimeUTC(datetimeString) {
+          if (!datetimeString) return 'N/A';
+          const date = new Date(datetimeString);
+          const options = {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+          };
+          return date.toLocaleTimeString([], options);
         },
 
         // Format total time to X Hours X Min
         formatTotalTime(totalTimeString) {
           if (!totalTimeString || totalTimeString === 'N/A') return 'N/A';
-          const timeParts = totalTimeString.match(/(\d+):(\d+)/);
+          const timeParts = totalTimeString.match(/(\d+):(\d+):(\d+)(\.\d+)?/);
           if (timeParts) {
             const hours = parseInt(timeParts[1], 10);
             const minutes = parseInt(timeParts[2], 10);
-            return `${hours} Hours ${minutes} Min`;
+            const seconds = parseFloat(timeParts[3] + (timeParts[4] || ''));
+            let totalSeconds = hours * 3600 + minutes * 60 + seconds;
+            if (totalSeconds >= 3600) {
+              const displayHours = Math.floor(totalSeconds / 3600);
+              totalSeconds %= 3600;
+              const displayMinutes = Math.floor(totalSeconds / 60);
+              return `${displayHours} Hours ${displayMinutes} Min`;
+            } else if (totalSeconds >= 60) {
+              const displayMinutes = Math.floor(totalSeconds / 60);
+              return `${displayMinutes} Min`;
+            } else {
+              return `${Math.round(totalSeconds)} Sec`;
+            }
           }
           return totalTimeString;
         },

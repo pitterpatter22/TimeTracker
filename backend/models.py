@@ -14,8 +14,8 @@ class TimeEntry(Base):
     __tablename__ = "time_entries"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    clock_in = Column(DateTime, default=None)
-    clock_out = Column(DateTime, default=None)
+    clock_in = Column(DateTime(timezone=True), default=None)
+    clock_out = Column(DateTime(timezone=True), default=None)
     clock_in_note = Column(String, nullable=True)
     clock_out_note = Column(String, nullable=True)
 

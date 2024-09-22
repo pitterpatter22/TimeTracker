@@ -314,6 +314,17 @@
       });
     }
 
+    function formatTime(datetimeString) {
+      if (!datetimeString) return 'N/A';
+      const date = new Date(datetimeString);
+      const options = {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true, // Set to false for 24-hour format
+      };
+      return date.toLocaleTimeString([], options);
+    }
+
     async function fetchTimeEntries(user) {
       const response = await fetch(`/time/${user}/recall/month`);
       const data = await response.json();
@@ -322,13 +333,13 @@
       data.entries.forEach(entry => {
         const row = tableBody.insertRow();
         row.insertCell(0).innerText = entry.date;
-        row.insertCell(1).innerText = entry.clock_in.clock_in ? new Date(entry.clock_in.clock_in).toLocaleString() : 'N/A';
-        row.insertCell(2).innerText = entry.clock_out.clock_out ? new Date(entry.clock_out.clock_out).toLocaleString() : 'N/A';
+        row.insertCell(1).innerText = entry.clock_in ? formatTime(entry.clock_in) : 'N/A';
+        row.insertCell(2).innerText = entry.clock_out ? formatTime(entry.clock_out) : 'N/A';
         const editCell = row.insertCell(3);
         const editButton = document.createElement('button');
         editButton.innerText = 'Edit';
         editButton.className = 'btn';
-        editButton.onclick = () => openEditModal(user, entry.date, entry.clock_in.clock_in, entry.clock_out.clock_out);
+        editButton.onclick = () => openEditModal(user, entry.date, entry.clock_in, entry.clock_out);
         editCell.appendChild(editButton);
       });
       document.getElementById('time-table').style.display = 'table';  // Show table
@@ -336,9 +347,19 @@
 
     function toLocalDatetimeInputValue(date) {
       if (!date) return '';
-      const local = new Date(date);
-      local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-      return local.toISOString().slice(0, 16);  // Remove seconds and milliseconds for datetime-local input
+      const dt = new Date(date);
+      const year = dt.getFullYear();
+      const month = ('0' + (dt.getMonth() + 1)).slice(-2);
+      const day = ('0' + dt.getDate()).slice(-2);
+      const hours = ('0' + dt.getHours()).slice(-2);
+      const minutes = ('0' + dt.getMinutes()).slice(-2);
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    function localDatetimeToUTC(datetimeLocal) {
+      if (!datetimeLocal) return null;
+      const localDate = new Date(datetimeLocal);
+      return localDate.toISOString();
     }
 
     function openEditModal(user, date, clockIn, clockOut) {
@@ -360,8 +381,8 @@
       const clockIn = document.getElementById('edit-clock-in').value;
       const clockOut = document.getElementById('edit-clock-out').value;
 
-      const clockInLocal = clockIn ? clockIn : null;
-      const clockOutLocal = clockOut ? clockOut : null;
+      const clockInUTC = clockIn ? localDatetimeToUTC(clockIn) : null;
+      const clockOutUTC = clockOut ? localDatetimeToUTC(clockOut) : null;
 
       const response = await fetch(`/time/${user}/edit`, {
         method: 'POST',
@@ -370,8 +391,8 @@
         },
         body: JSON.stringify({
           date: date,
-          clock_in_time: clockInLocal,
-          clock_out_time: clockOutLocal,
+          clock_in_time: clockInUTC,
+          clock_out_time: clockOutUTC,
         }),
       });
 

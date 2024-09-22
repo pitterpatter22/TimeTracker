@@ -10,9 +10,13 @@ from backend.database import get_db, engine
 from backend.models import Base, TimeEntry
 import backend.crud as crud
 import backend.schemas as schemas
+from datetime import datetime, timezone
 from backend.exceptions import UserNotFoundException, UserAlreadyClockedInException, NoClockInFoundException, UserAlreadyClockedOutException, UserAlreadyExists
 import bcrypt
 import os
+from sqlalchemy import func
+from dateutil.parser import isoparse
+
 
 # Basic Auth Setup
 security = HTTPBasic()
@@ -157,15 +161,42 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="User already registered")
 
 @app.post("/time/{user}/in")
-def clock_in(user: str, note: str = None, db: Session = Depends(get_db)):
+def clock_in(user: str, time: str = None, note: str = None, db: Session = Depends(get_db)):
     username_lower = user.lower()
     logger.info(f"clock_in: A request has been made for {username_lower}")
-    return crud.clock_in(db=db, user=username_lower, note=note)
+
+    # Parse the time parameter if provided
+    if time:
+        try:
+            parsed_time = datetime.fromisoformat(time)
+            if parsed_time.tzinfo is None:
+                parsed_time = parsed_time.replace(tzinfo=timezone.utc)
+            else:
+                parsed_time = parsed_time.astimezone(timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid time format. Use ISO 8601 format.")
+    else:
+        parsed_time = None  # The CRUD function will handle defaulting to current UTC time
+
+    return crud.clock_in(db=db, user=username_lower, time=parsed_time, note=note)
 
 @app.post("/time/{user}/out")
-def clock_out(user: str, note: str = None, db: Session = Depends(get_db)):
+def clock_out(user: str, time: str = None, note: str = None, db: Session = Depends(get_db)):
     username_lower = user.lower()
-    return crud.clock_out(db=db, user=username_lower, note=note)
+
+    if time:
+        try:
+            parsed_time = datetime.fromisoformat(time)
+            if parsed_time.tzinfo is None:
+                parsed_time = parsed_time.replace(tzinfo=timezone.utc)
+            else:
+                parsed_time = parsed_time.astimezone(timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid time format. Use ISO 8601 format.")
+    else:
+        parsed_time = None
+
+    return crud.clock_out(db=db, user=username_lower, time=parsed_time, note=note)
 
 @app.get("/time/{user}/recall/payperiod", response_model=schemas.PeriodSummary)
 def get_pay_period(user: str, db: Session = Depends(get_db)):
@@ -175,7 +206,8 @@ def get_pay_period(user: str, db: Session = Depends(get_db)):
 @app.get("/time/{user}/recall/month", response_model=schemas.PeriodSummary)
 def get_time_for_month(user: str, db: Session = Depends(get_db)):
     username_lower = user.lower()
-    return crud.get_time_for_month(db=db, user=username_lower)
+    period_summary = crud.get_time_for_month(db=db, user=username_lower)
+    return period_summary
 
 @app.get("/time/{user}/recall/week", response_model=schemas.PeriodSummary)
 def get_current_week(user: str, db: Session = Depends(get_db)):
@@ -235,23 +267,34 @@ def edit_clock_times(user: str, data: schemas.EditClockTimes, db: Session = Depe
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    target_date = data.date
-    start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_of_day = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+    try:
+        # Parse the date string into a date object
+        target_date = datetime.strptime(data.date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
+    # Query for the time entry on the specified date
     time_entry = db.query(TimeEntry).filter(
         TimeEntry.user_id == db_user.id,
-        TimeEntry.clock_in >= start_of_day,
-        TimeEntry.clock_in <= end_of_day
+        func.date(TimeEntry.clock_in) == target_date
     ).first()
 
     if not time_entry:
         raise HTTPException(status_code=404, detail="No time entry found for this date")
 
     if data.clock_in_time:
-        time_entry.clock_in = data.clock_in_time
+        # Parse the ISO datetime string with timezone information
+        time_entry.clock_in = isoparse(data.clock_in_time)
+        if time_entry.clock_in.tzinfo is None:
+            time_entry.clock_in = time_entry.clock_in.replace(tzinfo=timezone.utc)
+        else:
+            time_entry.clock_in = time_entry.clock_in.astimezone(timezone.utc)
     if data.clock_out_time:
-        time_entry.clock_out = data.clock_out_time
+        time_entry.clock_out = isoparse(data.clock_out_time)
+        if time_entry.clock_out.tzinfo is None:
+            time_entry.clock_out = time_entry.clock_out.replace(tzinfo=timezone.utc)
+        else:
+            time_entry.clock_out = time_entry.clock_out.astimezone(timezone.utc)
 
     db.commit()
     db.refresh(time_entry)
